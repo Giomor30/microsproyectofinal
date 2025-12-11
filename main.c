@@ -1,9 +1,8 @@
 /* USER CODE BEGIN Header */
 /**
   ******************************************************************************
-  * @file    usart.c
-  * @brief   This file provides code for the configuration
-  *          of the USART instances.
+  * @file           : main.c
+  * @brief          : Main program body
   ******************************************************************************
   * @attention
   *
@@ -18,245 +17,250 @@
   */
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
+#include "main.h"
+#include "adc.h"
+#include "dma.h"
+#include "i2c.h"
+#include "tim.h"
 #include "usart.h"
+#include "gpio.h"
 
+/* Private includes ----------------------------------------------------------*/
+/* USER CODE BEGIN Includes */
+#include "stdio.h"
+#include "string.h"
+#include "math.h"
+#include "esp01.h"
+#include "mqtt.h"
+//Lib pa la pantalla
+
+#include "ssd1306.h"
+/* USER CODE END Includes */
+
+/* Private typedef -----------------------------------------------------------*/
+/* USER CODE BEGIN PTD */
+
+/* USER CODE END PTD */
+
+/* Private define ------------------------------------------------------------*/
+/* USER CODE BEGIN PD */
+#define  Vref    3.3
+#define  Rref    9790
+#define  beta    3950
+#define  Ro      10000
+#define  Reg_PSC 9999
+#define  T_conv  5
+/* USER CODE END PD */
+
+/* Private macro -------------------------------------------------------------*/
+/* USER CODE BEGIN PM */
+
+/* USER CODE END PM */
+
+/* Private variables ---------------------------------------------------------*/
+
+/* USER CODE BEGIN PV */
+    uint32_t		ADC_data;
+    float			T;
+    char			TX_data[50];
+
+/* USER CODE END PV */
+
+/* Private function prototypes -----------------------------------------------*/
+void SystemClock_Config(void);
+/* USER CODE BEGIN PFP */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size);
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc);
+/* USER CODE END PFP */
+
+/* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
 
 /* USER CODE END 0 */
 
-UART_HandleTypeDef huart2;
-UART_HandleTypeDef huart3;
-DMA_HandleTypeDef hdma_usart3_rx;
-DMA_HandleTypeDef hdma_usart3_tx;
-
-/* USART2 init function */
-
-void MX_USART2_UART_Init(void)
+/**
+  * @brief  The application entry point.
+  * @retval int
+  */
+int main(void)
 {
 
-  /* USER CODE BEGIN USART2_Init 0 */
+  /* USER CODE BEGIN 1 */
 
-  /* USER CODE END USART2_Init 0 */
+  /* USER CODE END 1 */
 
-  /* USER CODE BEGIN USART2_Init 1 */
+  /* MCU Configuration--------------------------------------------------------*/
 
-  /* USER CODE END USART2_Init 1 */
-  huart2.Instance = USART2;
-  huart2.Init.BaudRate = 115200;
-  huart2.Init.WordLength = UART_WORDLENGTH_8B;
-  huart2.Init.StopBits = UART_STOPBITS_1;
-  huart2.Init.Parity = UART_PARITY_NONE;
-  huart2.Init.Mode = UART_MODE_TX_RX;
-  huart2.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart2.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart2.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart2.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart2) != HAL_OK)
+  /* Reset of all peripherals, Initializes the Flash interface and the Systick. */
+  HAL_Init();
+
+  /* USER CODE BEGIN Init */
+
+  /* USER CODE END Init */
+
+  /* Configure the system clock */
+  SystemClock_Config();
+
+  /* USER CODE BEGIN SysInit */
+
+  /* USER CODE END SysInit */
+
+  /* Initialize all configured peripherals */
+  MX_GPIO_Init();
+  MX_DMA_Init();
+  MX_USART2_UART_Init();
+  MX_USART3_UART_Init();
+  MX_ADC1_Init();
+  MX_TIM3_Init();
+  MX_I2C3_Init();
+  /* USER CODE BEGIN 2 */
+
+  ssd1306_Init();
+  ssd1306_SetCursor(1, 1);
+  ssd1306_WriteString("hola amibos ...", Font_7x10, White);
+  ssd1306_DrawRectangule(20, 20, 80, 40, White);
+  ssd1306_UpdateScreen();
+
+  //Inicio de ESP01
+ // ESP01_Init("Bolitas", "giomor30");
+  ESP01_Init("","");
+
+  //Conexión al servidor MQTT
+  MQTT_Connect("148.214.50.117", 1883, "bolitas30", "mm2023", "micros2023",0, 60);
+
+  //Iniciar el ADC y el TIM
+  HAL_ADCEx_Calibration_Start(&hadc1, ADC_SINGLE_ENDED);
+  HAL_ADC_Start_IT(&hadc1);
+  TIM3->PSC = Reg_PSC;
+  TIM3->ARR = (uint16_t)(T_conv*HAL_RCC_GetPCLK1Freq()/(Reg_PSC+1) -1);
+  HAL_TIM_Base_Start(&htim3);
+
+
+
+  /* USER CODE END 2 */
+
+  /* Infinite loop */
+  /* USER CODE BEGIN WHILE */
+  while (1)
+  {
+
+    /* USER CODE END WHILE */
+
+    /* USER CODE BEGIN 3 */
+  }
+  /* USER CODE END 3 */
+}
+
+/**
+  * @brief System Clock Configuration
+  * @retval None
+  */
+void SystemClock_Config(void)
+{
+  RCC_OscInitTypeDef RCC_OscInitStruct = {0};
+  RCC_ClkInitTypeDef RCC_ClkInitStruct = {0};
+
+  /** Configure the main internal regulator output voltage
+  */
+  if (HAL_PWREx_ControlVoltageScaling(PWR_REGULATOR_VOLTAGE_SCALE1) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART2_Init 2 */
 
-  /* USER CODE END USART2_Init 2 */
-
-}
-/* USART3 init function */
-
-void MX_USART3_UART_Init(void)
-{
-
-  /* USER CODE BEGIN USART3_Init 0 */
-
-  /* USER CODE END USART3_Init 0 */
-
-  /* USER CODE BEGIN USART3_Init 1 */
-
-  /* USER CODE END USART3_Init 1 */
-  huart3.Instance = USART3;
-  huart3.Init.BaudRate = 115200;
-  huart3.Init.WordLength = UART_WORDLENGTH_8B;
-  huart3.Init.StopBits = UART_STOPBITS_1;
-  huart3.Init.Parity = UART_PARITY_NONE;
-  huart3.Init.Mode = UART_MODE_TX_RX;
-  huart3.Init.HwFlowCtl = UART_HWCONTROL_NONE;
-  huart3.Init.OverSampling = UART_OVERSAMPLING_16;
-  huart3.Init.OneBitSampling = UART_ONE_BIT_SAMPLE_DISABLE;
-  huart3.AdvancedInit.AdvFeatureInit = UART_ADVFEATURE_NO_INIT;
-  if (HAL_UART_Init(&huart3) != HAL_OK)
+  /** Initializes the RCC Oscillators according to the specified parameters
+  * in the RCC_OscInitTypeDef structure.
+  */
+  RCC_OscInitStruct.OscillatorType = RCC_OSCILLATORTYPE_HSI;
+  RCC_OscInitStruct.HSIState = RCC_HSI_ON;
+  RCC_OscInitStruct.HSICalibrationValue = RCC_HSICALIBRATION_DEFAULT;
+  RCC_OscInitStruct.PLL.PLLState = RCC_PLL_ON;
+  RCC_OscInitStruct.PLL.PLLSource = RCC_PLLSOURCE_HSI;
+  RCC_OscInitStruct.PLL.PLLM = 1;
+  RCC_OscInitStruct.PLL.PLLN = 10;
+  RCC_OscInitStruct.PLL.PLLP = RCC_PLLP_DIV7;
+  RCC_OscInitStruct.PLL.PLLQ = RCC_PLLQ_DIV2;
+  RCC_OscInitStruct.PLL.PLLR = RCC_PLLR_DIV2;
+  if (HAL_RCC_OscConfig(&RCC_OscInitStruct) != HAL_OK)
   {
     Error_Handler();
   }
-  /* USER CODE BEGIN USART3_Init 2 */
 
-  /* USER CODE END USART3_Init 2 */
-
-}
-
-void HAL_UART_MspInit(UART_HandleTypeDef* uartHandle)
-{
-
-  GPIO_InitTypeDef GPIO_InitStruct = {0};
-  RCC_PeriphCLKInitTypeDef PeriphClkInit = {0};
-  if(uartHandle->Instance==USART2)
-  {
-  /* USER CODE BEGIN USART2_MspInit 0 */
-
-  /* USER CODE END USART2_MspInit 0 */
-
-  /** Initializes the peripherals clock
+  /** Initializes the CPU, AHB and APB buses clocks
   */
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART2;
-    PeriphClkInit.Usart2ClockSelection = RCC_USART2CLKSOURCE_PCLK1;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-    {
-      Error_Handler();
-    }
+  RCC_ClkInitStruct.ClockType = RCC_CLOCKTYPE_HCLK|RCC_CLOCKTYPE_SYSCLK
+                              |RCC_CLOCKTYPE_PCLK1|RCC_CLOCKTYPE_PCLK2;
+  RCC_ClkInitStruct.SYSCLKSource = RCC_SYSCLKSOURCE_PLLCLK;
+  RCC_ClkInitStruct.AHBCLKDivider = RCC_SYSCLK_DIV1;
+  RCC_ClkInitStruct.APB1CLKDivider = RCC_HCLK_DIV1;
+  RCC_ClkInitStruct.APB2CLKDivider = RCC_HCLK_DIV1;
 
-    /* USART2 clock enable */
-    __HAL_RCC_USART2_CLK_ENABLE();
-
-    __HAL_RCC_GPIOA_CLK_ENABLE();
-    /**USART2 GPIO Configuration
-    PA2     ------> USART2_TX
-    PA3     ------> USART2_RX
-    */
-    GPIO_InitStruct.Pin = USART_TX_Pin|USART_RX_Pin;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART2;
-    HAL_GPIO_Init(GPIOA, &GPIO_InitStruct);
-
-    /* USART2 interrupt Init */
-    HAL_NVIC_SetPriority(USART2_IRQn, 1, 0);
-    HAL_NVIC_EnableIRQ(USART2_IRQn);
-  /* USER CODE BEGIN USART2_MspInit 1 */
-
-  /* USER CODE END USART2_MspInit 1 */
-  }
-  else if(uartHandle->Instance==USART3)
+  if (HAL_RCC_ClockConfig(&RCC_ClkInitStruct, FLASH_LATENCY_4) != HAL_OK)
   {
-  /* USER CODE BEGIN USART3_MspInit 0 */
+    Error_Handler();
+  }
+}
 
-  /* USER CODE END USART3_MspInit 0 */
+/* USER CODE BEGIN 4 */
+void HAL_UARTEx_RxEventCallback(UART_HandleTypeDef *huart, uint16_t Size){
+	if (huart == &ESP01_UART) {
+		ESP01_Echo(huart, Size);
 
-  /** Initializes the peripherals clock
+	}
+}
+
+void HAL_ADC_ConvCpltCallback(ADC_HandleTypeDef *hadc) {
+
+
+	if (hadc->Instance == ADC1) {
+
+		float Vx, Rx;
+
+		ADC_data = HAL_ADC_GetValue(hadc);
+
+
+		Vx = (float)(Vref*ADC_data/4095);
+		Rx = (float)(Rref*(Vref/Vx -1));
+		T = (float)(298.15*beta/(beta+298.15*logf(Rx/Ro))-273.15);
+		sprintf(TX_data,"Temperatura: %5.2f°C\r\n",T);
+		HAL_UART_Transmit(&huart2, (uint8_t *)TX_data,strlen(TX_data),10);
+
+		//Publicar temperatura al servidor MQTT
+		sprintf(TX_data,"%5.2f\r\n",T);
+		MQTT_Publish(0,"/UG/Temp",TX_data);
+
+		HAL_GPIO_TogglePin(LD2_GPIO_Port,LD2_Pin);
+
+	}
+}
+/* USER CODE END 4 */
+
+/**
+  * @brief  This function is executed in case of error occurrence.
+  * @retval None
   */
-    PeriphClkInit.PeriphClockSelection = RCC_PERIPHCLK_USART3;
-    PeriphClkInit.Usart3ClockSelection = RCC_USART3CLKSOURCE_PCLK1;
-    if (HAL_RCCEx_PeriphCLKConfig(&PeriphClkInit) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    /* USART3 clock enable */
-    __HAL_RCC_USART3_CLK_ENABLE();
-
-    __HAL_RCC_GPIOC_CLK_ENABLE();
-    /**USART3 GPIO Configuration
-    PC10     ------> USART3_TX
-    PC11     ------> USART3_RX
-    */
-    GPIO_InitStruct.Pin = GPIO_PIN_10|GPIO_PIN_11;
-    GPIO_InitStruct.Mode = GPIO_MODE_AF_PP;
-    GPIO_InitStruct.Pull = GPIO_NOPULL;
-    GPIO_InitStruct.Speed = GPIO_SPEED_FREQ_VERY_HIGH;
-    GPIO_InitStruct.Alternate = GPIO_AF7_USART3;
-    HAL_GPIO_Init(GPIOC, &GPIO_InitStruct);
-
-    /* USART3 DMA Init */
-    /* USART3_RX Init */
-    hdma_usart3_rx.Instance = DMA1_Channel3;
-    hdma_usart3_rx.Init.Request = DMA_REQUEST_2;
-    hdma_usart3_rx.Init.Direction = DMA_PERIPH_TO_MEMORY;
-    hdma_usart3_rx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_usart3_rx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_usart3_rx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_usart3_rx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_usart3_rx.Init.Mode = DMA_NORMAL;
-    hdma_usart3_rx.Init.Priority = DMA_PRIORITY_LOW;
-    if (HAL_DMA_Init(&hdma_usart3_rx) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    __HAL_LINKDMA(uartHandle,hdmarx,hdma_usart3_rx);
-
-    /* USART3_TX Init */
-    hdma_usart3_tx.Instance = DMA1_Channel2;
-    hdma_usart3_tx.Init.Request = DMA_REQUEST_2;
-    hdma_usart3_tx.Init.Direction = DMA_MEMORY_TO_PERIPH;
-    hdma_usart3_tx.Init.PeriphInc = DMA_PINC_DISABLE;
-    hdma_usart3_tx.Init.MemInc = DMA_MINC_ENABLE;
-    hdma_usart3_tx.Init.PeriphDataAlignment = DMA_PDATAALIGN_BYTE;
-    hdma_usart3_tx.Init.MemDataAlignment = DMA_MDATAALIGN_BYTE;
-    hdma_usart3_tx.Init.Mode = DMA_NORMAL;
-    hdma_usart3_tx.Init.Priority = DMA_PRIORITY_LOW;
-    if (HAL_DMA_Init(&hdma_usart3_tx) != HAL_OK)
-    {
-      Error_Handler();
-    }
-
-    __HAL_LINKDMA(uartHandle,hdmatx,hdma_usart3_tx);
-
-    /* USART3 interrupt Init */
-    HAL_NVIC_SetPriority(USART3_IRQn, 0, 0);
-    HAL_NVIC_EnableIRQ(USART3_IRQn);
-  /* USER CODE BEGIN USART3_MspInit 1 */
-
-  /* USER CODE END USART3_MspInit 1 */
-  }
-}
-
-void HAL_UART_MspDeInit(UART_HandleTypeDef* uartHandle)
+void Error_Handler(void)
 {
-
-  if(uartHandle->Instance==USART2)
+  /* USER CODE BEGIN Error_Handler_Debug */
+  /* User can add his own implementation to report the HAL error return state */
+  __disable_irq();
+  while (1)
   {
-  /* USER CODE BEGIN USART2_MspDeInit 0 */
-
-  /* USER CODE END USART2_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_USART2_CLK_DISABLE();
-
-    /**USART2 GPIO Configuration
-    PA2     ------> USART2_TX
-    PA3     ------> USART2_RX
-    */
-    HAL_GPIO_DeInit(GPIOA, USART_TX_Pin|USART_RX_Pin);
-
-    /* USART2 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(USART2_IRQn);
-  /* USER CODE BEGIN USART2_MspDeInit 1 */
-
-  /* USER CODE END USART2_MspDeInit 1 */
   }
-  else if(uartHandle->Instance==USART3)
-  {
-  /* USER CODE BEGIN USART3_MspDeInit 0 */
-
-  /* USER CODE END USART3_MspDeInit 0 */
-    /* Peripheral clock disable */
-    __HAL_RCC_USART3_CLK_DISABLE();
-
-    /**USART3 GPIO Configuration
-    PC10     ------> USART3_TX
-    PC11     ------> USART3_RX
-    */
-    HAL_GPIO_DeInit(GPIOC, GPIO_PIN_10|GPIO_PIN_11);
-
-    /* USART3 DMA DeInit */
-    HAL_DMA_DeInit(uartHandle->hdmarx);
-    HAL_DMA_DeInit(uartHandle->hdmatx);
-
-    /* USART3 interrupt Deinit */
-    HAL_NVIC_DisableIRQ(USART3_IRQn);
-  /* USER CODE BEGIN USART3_MspDeInit 1 */
-
-  /* USER CODE END USART3_MspDeInit 1 */
-  }
+  /* USER CODE END Error_Handler_Debug */
 }
-
-/* USER CODE BEGIN 1 */
-
-/* USER CODE END 1 */
+#ifdef USE_FULL_ASSERT
+/**
+  * @brief  Reports the name of the source file and the source line number
+  *         where the assert_param error has occurred.
+  * @param  file: pointer to the source file name
+  * @param  line: assert_param error line source number
+  * @retval None
+  */
+void assert_failed(uint8_t *file, uint32_t line)
+{
+  /* USER CODE BEGIN 6 */
+  /* User can add his own implementation to report the file name and line number,
+     ex: printf("Wrong parameters value: file %s on line %d\r\n", file, line) */
+  /* USER CODE END 6 */
+}
+#endif /* USE_FULL_ASSERT */
